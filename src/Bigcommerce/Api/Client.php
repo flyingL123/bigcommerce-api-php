@@ -9,12 +9,18 @@ use \Exception as Exception;
  */
 class Client
 {
-	static private $store_url;
-	static private $username;
-	static private $api_key;
-	static private $connection;
-	static private $resource;
-	static private $path_prefix = '/api/v2';
+	private static $store_url;
+	private static $username;
+	private static $api_key;
+	private static $connection;
+	private static $resource;
+	private static $path_prefix = '/api/v2';
+	private static $client_id;
+	private static $auth_token;
+	private static $store_hash;
+	private static $stores_prefix = '/stores/%s/v2';
+	private static $api_url = 'https://api.bigcommerce.com';
+	private static $login_url = 'https://login.bigcommerce.com';
 
 	/**
 	 * Full URL path to the configured store API.
@@ -22,6 +28,21 @@ class Client
 	 * @var string
 	 */
 	static public $api_path;
+
+	public static function configureOAuth($settings)
+	{
+		if (!isset($settings['auth_token'])) {
+		    throw new Exception('\'auth_token\' must be provided');
+		}
+		if (!isset($settings['store_hash'])) {
+		    throw new Exception('\'store_hash\' must be provided');
+		}
+		self::$client_id = $settings['client_id'];
+		self::$auth_token = $settings['auth_token'];
+		self::$store_hash = $settings['store_hash'];
+		self::$api_path = self::$api_url . sprintf(self::$stores_prefix, self::$store_hash);
+		self::$connection = false;
+	}
 
 	/**
 	 * Configure the API client with the required credentials.
@@ -36,23 +57,11 @@ class Client
 	 */
 	public static function configure($settings)
 	{
-		if (!isset($settings['store_url'])) {
-			throw new Exception("'store_url' must be provided");
+		if (isset($settings['client_id'])) {
+		    self::configureOAuth($settings);
+		} else {
+		    self::configureBasicAuth($settings);
 		}
-
-		if (!isset($settings['username'])) {
-			throw new Exception("'username' must be provided");
-		}
-
-		if (!isset($settings['api_key'])) {
-			throw new Exception("'api_key' must be provided");
-		}
-
-		self::$username  = $settings['username'];
-		self::$api_key 	 = $settings['api_key'];
-		self::$store_url = rtrim($settings['store_url'], '/');
-		self::$api_path  = self::$store_url . self::$path_prefix;
-		self::$connection = false;
 	}
 
 	/**
@@ -120,10 +129,14 @@ class Client
 	private static function connection()
 	{
 		if (!self::$connection) {
-		 	self::$connection = new Connection();
+		    self::$connection = new Connection();
+		    if (self::$client_id) {
+			self::$connection->addHeader('X-Auth-Client', self::$client_id);
+			self::$connection->addHeader('X-Auth-Token', self::$auth_token);
+		    } else {
 			self::$connection->authenticate(self::$username, self::$api_key);
+		    }
 		}
-
 		return self::$connection;
 	}
 
