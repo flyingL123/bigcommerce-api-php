@@ -155,6 +155,26 @@ class Client
 		return self::mapCollection($resource, $response);
 	}
 
+	public static function getAllCollection($path, $resource='Resource')
+	{
+		$numberOfObjects = Bigcommerce::getCount($path.'/count');
+		$objectsPerPage = 200;
+		$numberOfPages = ceil($numberOfObjects / $objectsPerPage);
+
+		$allArray = array();
+
+		for($i=0; $i<$numberOfPages; $i++){
+			$collection = getCollection($path, 'Sku');
+
+			foreach($collection as $resource){
+				$allArray[] = $resource;
+			}
+		}
+
+		return $allArray();
+
+	}
+
 	/**
 	 * Get a resource entity from the specified endpoint.
 	 *
