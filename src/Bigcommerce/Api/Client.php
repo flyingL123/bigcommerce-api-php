@@ -166,12 +166,12 @@ class Client
 		for($i=0; $i<$numberOfPages; $i++){
 			$collection = self::getCollection($path."?limit=200&page=".($i + 1), $resource);
 
-			foreach($collection as $resource){
-				$allArray[] = $resource;
+			foreach($collection as $obj){
+				$allArray[] = $obj;
 			}
 		}
 
-		return $allArray();
+		return $allArray;
 
 	}
 
