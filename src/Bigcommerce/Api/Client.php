@@ -164,7 +164,7 @@ class Client
 		$allArray = array();
 
 		for($i=0; $i<$numberOfPages; $i++){
-			$collection = self::getCollection($path, 'Sku');
+			$collection = self::getCollection($path."?limit=200&page=".($i + 1), $resource);
 
 			foreach($collection as $resource){
 				$allArray[] = $resource;
