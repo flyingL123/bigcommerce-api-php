@@ -155,16 +155,23 @@ class Client
 		return self::mapCollection($resource, $response);
 	}
 
-	public static function getFullCollection($path, $resource='Resource')
+	public static function getFullCollection($path, $resource='Resource', $filters)
 	{
-		$numberOfObjects = self::getCount($path.'/count');
+		
+		$countFilter = Filter::create($filters);
+
+		$numberOfObjects = self::getCount($path.'/count'.$countFilter->toQuery());
 		$objectsPerPage = 200;
 		$numberOfPages = ceil($numberOfObjects / $objectsPerPage);
 
 		$allArray = array();
 
 		for($i=0; $i<$numberOfPages; $i++){
-			$collection = self::getCollection($path."?limit=200&page=".($i + 1), $resource);
+			
+			$collectionFilters = array_merge($filters, array("limit"=>200, "page"=>$i + 1));
+			$collectionFilters = Filter::create($collectionFilters);
+
+			$collection = self::getCollection($path . $collectionFilters->toQuery(), $resource);
 
 			foreach($collection as $obj){
 				$allArray[] = $obj;
