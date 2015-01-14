@@ -29,19 +29,22 @@ class Client
 	 */
 	static public $api_path;
 
-	public static function configureOAuth($settings)
+	public static function configureOAuth($settings, $reset)
 	{
-		if (!isset($settings['auth_token'])) {
-		    throw new Exception('\'auth_token\' must be provided');
+		if(!self::$api_path || $reset)
+		{
+			if (!isset($settings['auth_token'])) {
+			    throw new Exception('\'auth_token\' must be provided');
+			}
+			if (!isset($settings['store_hash'])) {
+			    throw new Exception('\'store_hash\' must be provided');
+			}
+			self::$client_id = $settings['client_id'];
+			self::$auth_token = $settings['auth_token'];
+			self::$store_hash = $settings['store_hash'];
+			self::$api_path = self::$api_url . sprintf(self::$stores_prefix, self::$store_hash);
+			self::$connection = false;
 		}
-		if (!isset($settings['store_hash'])) {
-		    throw new Exception('\'store_hash\' must be provided');
-		}
-		self::$client_id = $settings['client_id'];
-		self::$auth_token = $settings['auth_token'];
-		self::$store_hash = $settings['store_hash'];
-		self::$api_path = self::$api_url . sprintf(self::$stores_prefix, self::$store_hash);
-		self::$connection = false;
 	}
 
 	/**
@@ -54,13 +57,12 @@ class Client
 	 * - api_key
 	 *
 	 * @param array $settings
+	 * @param boolean $reset - Set to true if a new connection should be configured.
 	 */
-	public static function configure($settings)
+	public static function configure($settings, $reset = false)
 	{
 		if (isset($settings['client_id'])) {
-		    self::configureOAuth($settings);
-		} else {
-		    self::configureBasicAuth($settings);
+		    self::configureOAuth($settings, $reset);
 		}
 	}
 
