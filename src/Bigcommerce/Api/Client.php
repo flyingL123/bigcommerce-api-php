@@ -175,8 +175,10 @@ class Client
 
 			$collection = self::getCollection($path . $collectionFilters->toQuery(), $resource);
 
-			foreach($collection as $obj){
-				$allArray[] = $obj;
+			if ($collection) {
+				foreach($collection as $obj){
+					$allArray[] = $obj;
+				}
 			}
 		}
 
