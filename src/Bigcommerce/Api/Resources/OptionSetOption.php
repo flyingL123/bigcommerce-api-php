@@ -21,7 +21,7 @@ class OptionSetOption extends Resource
 
 	public function option()
 	{
-		return Client::getCollection($this->fields->option->resource);
+		return Client::getResource($this->fields->option->resource);
 	}
 
 	public function create()
