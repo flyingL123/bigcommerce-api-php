@@ -59,6 +59,7 @@ class Client
 	{
 		if (isset($settings['client_id'])) {
 		    self::configureOAuth($settings);
+		    self::failOnError(true);
 		}
 	}
 
