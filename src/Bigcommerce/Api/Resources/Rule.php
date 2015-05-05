@@ -10,7 +10,6 @@ use Bigcommerce\Api\Client;
  */
 class Rule extends Resource
 {
-
 	protected $ignoreOnCreate = array(
 		'id',
 		'product_id',
@@ -30,5 +29,4 @@ class Rule extends Resource
 	{
 		Client::updateResource('/products/' . $this->product_id . '/rules/' . $this->id, $this->getUpdateFields());
 	}
-
 }

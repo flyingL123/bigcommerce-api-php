@@ -7,7 +7,6 @@ use Bigcommerce\Api\Client;
 
 class OptionSetOption extends Resource
 {
-
 	protected $ignoreOnCreate = array(
 		'id',
 		'option_set_id',
@@ -33,5 +32,4 @@ class OptionSetOption extends Resource
 	{
 		Client::updateResource('/optionsets/options/' . $this->id, $this->getUpdateFields());
 	}
-
 }

@@ -10,7 +10,6 @@ use Bigcommerce\Api\Client;
  */
 class Sku extends Resource
 {
-
 	protected $ignoreOnCreate = array(
 		'product_id',
 	);
@@ -29,5 +28,4 @@ class Sku extends Resource
 	{
 		Client::updateResource('/products/' . $this->product_id . '/skus/' . $this->id , $this->getUpdateFields());
 	}
-
 }
