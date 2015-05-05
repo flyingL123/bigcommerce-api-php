@@ -417,7 +417,6 @@ class Connection
                 $this->responseHeaders[$parts[0]] = trim($parts[1]);
             }
         }
->>>>>>> 15aaf1bbbc7a02fb6dbb3c59457039be33446858
         return strlen($headers);
     }
 
