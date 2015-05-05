@@ -1254,5 +1254,4 @@ class Client
         $filter = Filter::create($filter);
         return self::getCollection('/orders/' . $orderID . '/shipping_addresses' . $filter->toQuery(), 'Address');
     }
->>>>>>> 15aaf1bbbc7a02fb6dbb3c59457039be33446858
 }
