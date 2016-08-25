@@ -1296,5 +1296,4 @@ class Client
     {
         return self::deleteResource('/products/' . $productID . '/reviews/' . $productReviewID);
     }
-    }
 }
