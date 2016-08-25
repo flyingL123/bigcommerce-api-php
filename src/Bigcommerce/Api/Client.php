@@ -1264,7 +1264,7 @@ class Client
      */
     public static function createProductReview($productID, $object)
     {
-       return self::createResource('/produdcts/' . $productID . '/reviews', $object);
+       return self::createResource('/products/' . $productID . '/reviews', $object);
     }
     
     /**
