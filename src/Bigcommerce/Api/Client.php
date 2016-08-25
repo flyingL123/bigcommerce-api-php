@@ -1279,4 +1279,16 @@ class Client
     {
         return self::updateResource('/products/' . $productID . '/reviews/' . $productReviewID, $object);
     }
+    
+    /**
+     * Get a single product review
+     *
+     * @param $productID
+     * @param $productReviewID
+     * @return mixed
+     */
+    public static function getProductReview($productID, $productReviewID)
+    {
+        return self::getResource('/products/' . $productID . '/reviews/' . $productReviewID, 'ProductReview');
+    }
 }
