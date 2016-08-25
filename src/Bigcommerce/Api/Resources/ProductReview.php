@@ -27,6 +27,6 @@ class ProductReview extends Resource
     
     public function update()
     {
-        return Client::updateProductReview($this->id, $this->getUpdateFields());
+        return Client::updateProductReview($this->product_id, $this->id, $this->getUpdateFields());
     }
 }
