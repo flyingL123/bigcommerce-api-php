@@ -1254,4 +1254,29 @@ class Client
         $filter = Filter::create($filter);
         return self::getCollection('/orders/' . $orderID . '/shipping_addresses' . $filter->toQuery(), 'Address');
     }
+    
+    /**
+     * Create a product review for a given product
+     * 
+     * @param $productID
+     * @param $object
+     * @return hash|bool|mixed
+     */
+    public static function createProductReview($productID, $object)
+    {
+       return self::createResource('/produdcts/' . $productID . '/reviews', $object);
+    }
+    
+    /**
+     * Update a product review
+     *
+     * @param $productID
+     * @param $productReviewID
+     * @param $object
+     * @return hash|bool|mixed
+     */
+    public static function updateProductReview($productID, $productReviewID, $object)
+    {
+        return self::updateResource('/products/' . $productID . '/reviews/' . $productReviewID, $object);
+    }
 }
