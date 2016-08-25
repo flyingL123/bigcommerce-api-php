@@ -14,14 +14,17 @@ class ProductReview extends Resource
         'id',
         'product_id',
     );
+    
     protected $ignoreOnUpdate = array(
         'id',
         'product_id',
     );
+    
     public function create()
     {
         return Client::createProductReview($this->getCreateFields());
     }
+    
     public function update()
     {
         return Client::updateProductReview($this->id, $this->getUpdateFields());
