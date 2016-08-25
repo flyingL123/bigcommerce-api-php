@@ -1291,4 +1291,10 @@ class Client
     {
         return self::getResource('/products/' . $productID . '/reviews/' . $productReviewID, 'ProductReview');
     }
+    
+    public static function deleteProductReview($productID, $productReviewID)
+    {
+        return self::deleteResource('/products/' . $productID . '/reviews/' . $productReviewID);
+    }
+    }
 }
