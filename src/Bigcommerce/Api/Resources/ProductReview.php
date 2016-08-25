@@ -34,5 +34,4 @@ class ProductReview extends Resource
     {
         return Client::deleteProductReview($this->product_id, $this->id);   
     }
-    }
 }
