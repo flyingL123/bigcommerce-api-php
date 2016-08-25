@@ -29,4 +29,10 @@ class ProductReview extends Resource
     {
         return Client::updateProductReview($this->product_id, $this->id, $this->getUpdateFields());
     }
+    
+    public function delete()
+    {
+        return Client::deleteProductReview($this->product_id, $this->id);   
+    }
+    }
 }
