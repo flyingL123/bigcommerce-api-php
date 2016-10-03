@@ -1008,6 +1008,15 @@ class Client
     {
         return self::getCollection('/order_statuses', 'OrderStatus');
     }
+    
+    /**
+     * Get a Sku by id
+     * @return Sku
+     */
+    public static function getSku($id)
+    {
+        return self::getResource('/products/skus/' . $id, 'Sku');
+    }
 
     /**
      * Get collection of product skus
