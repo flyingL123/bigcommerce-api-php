@@ -113,4 +113,9 @@ class Product extends Resource
     {
         return Client::getResource($this->fields->tax_class->resource, 'TaxClass');
     }
+    
+    public function googleproductsearch()
+    {
+        return Client::getResource('/products/' . $this->id . '/googleproductsearch');
+    }
 }
