@@ -499,15 +499,6 @@ class Client
     {
         return self::deleteResource('/products');
     }
-    
-    /**
-     * Get the GoogleProductSearchMapping for a product
-     *
-     * @return Resource
-     */
-    public static function getGoogleProductSearchMapping($productId) {
-        return self::getResource('/products/' . $productId . '/googleproductsearch');
-    }
 
     /**
      * Return the collection of options.
