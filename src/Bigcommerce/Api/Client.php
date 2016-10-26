@@ -248,11 +248,13 @@ class Client
      * @param mixed $object object or XML string to update
      * @return hash|bool|mixed
      */
-    public static function updateResource($path, $object)
+    public static function updateResource($path, $object, $resource = 'Resource')
     {
         if (is_array($object)) $object = (object)$object;
 
-        return self::connection()->put(self::$api_path . $path, $object);
+        $response = self::connection()->put(self::$api_path . $path, $object);
+        
+        return self::mapResource($resource, $response);
     }
 
     /**
@@ -476,7 +478,7 @@ class Client
      */
     public static function updateProduct($id, $object)
     {
-        return self::updateResource('/products/' . $id, $object);
+        return self::updateResource('/products/' . $id, $object, 'Product');
     }
 
     /**
