@@ -1019,6 +1019,21 @@ class Client
     {
         return self::createResource('/optionsets/' . $id . '/options', $object, 'OptionSetOption');
     }
+    
+    public static function updateOptionSetOption($option_set_id, $id, $object)
+    {
+        return self::updateResource('/optionsets/' . $option_set_id . '/options/'. $id, $object, 'OptionSetOption');    
+    }
+    
+    public static function getOptionSetOption($option_set_id, $id, $object)
+    {
+        return self::getResource('/optionsets/' . $option_set_id . '/options/'. $id, $object, 'OptionSetOption');    
+    }
+    
+    public static function deleteOptionSetOption($option_set_id, $id, $object)
+    {
+        return self::deleteResource('/optionsets/' . $option_set_id . '/options/'. $id);    
+    }
 
     /**
      * Status codes used to represent the state of an order.
