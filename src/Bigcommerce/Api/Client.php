@@ -1015,7 +1015,7 @@ class Client
      * @param $id
      * @return hash|bool|mixed
      */
-    public static function createOptionSetOption($object, $id)
+    public static function createOptionSetOption($id, $object)
     {
         return self::createResource('/optionsets/' . $id . '/options', $object, 'OptionSetOption');
     }
