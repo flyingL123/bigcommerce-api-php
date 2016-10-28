@@ -521,7 +521,7 @@ class Client
      * @param $object
      * @return hash|bool|mixed
      */
-    public static function createOptions($object)
+    public static function createOption($object)
     {
         return self::createResource('/options', $object);
     }
