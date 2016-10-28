@@ -560,6 +560,11 @@ class Client
         return self::deleteResource('/options/' . $id);
     }
 
+    public static function updateOption($id, $object)
+    {
+        return self::updateResource('/options/' . $id, $object, 'Option');
+    }
+    
     /**
      * Return a single value for an option.
      *
@@ -570,6 +575,21 @@ class Client
     public static function getOptionValue($option_id, $id)
     {
         return self::getResource('/options/' . $option_id . '/values/' . $id, 'OptionValue');
+    }
+    
+    public static function createOptionValue($option_id, $id, $object)
+    {
+        return self::createResource('/options/' . $option_id . '/values', $object, 'OptionValue');
+    }
+    
+    public static function deleteOptionValue($option_id, $id)
+    {
+        return self::deleteResource('/options/' . $option_id . '/values/' . $id);
+    }
+    
+    public static function updateOptionValue($option_id, $id, $object)
+    {
+        return self::updateResource('/options/' . $option_id . '/values/' . $id, $object, 'OptionValue');
     }
 
     /**
