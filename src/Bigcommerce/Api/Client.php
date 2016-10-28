@@ -523,7 +523,7 @@ class Client
      */
     public static function createOption($object)
     {
-        return self::createResource('/options', $object);
+        return self::createResource('/options', $object, 'Option');
     }
 
 
@@ -995,9 +995,9 @@ class Client
      * @param $id
      * @return hash|bool|mixed
      */
-    public static function createOptionsets_Options($object, $id)
+    public static function createOptionSetOption($object, $id)
     {
-        return self::createResource('/optionsets/' . $id . '/options', $object);
+        return self::createResource('/optionsets/' . $id . '/options', $object, 'OptionSetOption');
     }
 
     /**
