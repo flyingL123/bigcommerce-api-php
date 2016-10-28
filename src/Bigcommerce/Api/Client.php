@@ -234,11 +234,13 @@ class Client
      * @param mixed $object object or XML string to create
      * @return hash|bool|mixed
      */
-    public static function createResource($path, $object)
+    public static function createResource($path, $object, $resource = 'Resource')
     {
         if (is_array($object)) $object = (object)$object;
 
-        return self::connection()->post(self::$api_path . $path, $object);
+        $response = self::connection()->post(self::$api_path . $path, $object);
+        
+        return self::mapResource($resource, $response);
     }
 
     /**
@@ -952,9 +954,38 @@ class Client
      * @param $object
      * @return hash|bool|mixed
      */
-    public static function createOptionsets($object)
+    public static function createOptionSet($object)
     {
-        return self::createResource('/optionsets', $object);
+        return self::createResource('/optionsets', $object, 'OptionSet');
+    }
+    
+    public static function updateOptionSet($id, $object) {
+        return self::updateResource('/optionsets/' . $id, $object, 'OptionSet');
+    }
+    
+    public static function deleteOptionSet($id) {
+        return self::deleteResource('/optionsets/' . $id);
+    }
+        
+    /**
+     * A single option set by given id.
+     *
+     * @param int $id option set id
+     * @return OptionSet
+     */
+    public static function getOptionSet($id)
+    {
+        return self::getResource('/optionsets/' . $id, 'OptionSet');
+    }
+    
+    /**
+     * Returns the total number of option sets in the collection.
+     *
+     * @return int
+     */
+    public static function getOptionSetsCount()
+    {
+        return self::getCount('/optionsets/count');
     }
 
     /**
@@ -967,28 +998,6 @@ class Client
     public static function createOptionsets_Options($object, $id)
     {
         return self::createResource('/optionsets/' . $id . '/options', $object);
-    }
-
-
-    /**
-     * Returns the total number of option sets in the collection.
-     *
-     * @return int
-     */
-    public static function getOptionSetsCount()
-    {
-        return self::getCount('/optionsets/count');
-    }
-
-    /**
-     * A single option set by given id.
-     *
-     * @param int $id option set id
-     * @return OptionSet
-     */
-    public static function getOptionSet($id)
-    {
-        return self::getResource('/optionsets/' . $id, 'OptionSet');
     }
 
     /**
