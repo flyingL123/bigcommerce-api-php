@@ -376,6 +376,11 @@ class Client
     {
         return self::updateResource('/products/' . $product_id . '/images/' . $id, $object, 'ProductImage');    
     }
+    
+    public static function deleteProductImage($product_id, $id)
+    {
+        return self::deleteResource('/products/'. $product_id . '/images/' . $id);   
+    }
 
     /**
      * Gets collection of custom fields for a product.
