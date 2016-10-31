@@ -413,7 +413,7 @@ class Client
      */
     public static function createProductCustomField($product_id, $object)
     {
-        return self::createResource('/products/' . $product_id . '/customfields', $object);
+        return self::createResource('/products/' . $product_id . '/customfields', $object, 'ProductCustomField');
     }
 
     /**
@@ -437,7 +437,7 @@ class Client
      */
     public static function updateProductCustomField($product_id, $id, $object)
     {
-        return self::updateResource('/products/' . $product_id . '/customfields/' . $id, $object);
+        return self::updateResource('/products/' . $product_id . '/customfields/' . $id, $object, 'ProductCustomField');
     }
 
     /**
