@@ -381,6 +381,26 @@ class Client
     {
         return self::deleteResource('/products/'. $product_id . '/images/' . $id);   
     }
+    
+    public static function createProductRule($product_id, $object)
+    {
+        return self::createResource('/products/' . $product_id . '/rules', $object, 'Rule');    
+    }
+    
+    public static function updateProductRule($product_id, $id, $object)
+    {
+        return self::updateResource('/products/' . $product_id . '/rules/' . $id, $object, 'Rule');    
+    }
+    
+    public static function deleteProductRule($product_id, $id)
+    {
+        return self::deleteResource('/products/'. $product_id . '/rules/' . $id);   
+    }
+    
+    public static function getProductRule($product_id, $id)
+    {
+        return self::getResource('/products/' . $product_id . '/rules/' . $id, 'Rule');    
+    }
 
     /**
      * Gets collection of custom fields for a product.
