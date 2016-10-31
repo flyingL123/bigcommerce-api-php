@@ -366,6 +366,16 @@ class Client
     {
         return self::getCollection('/products/' . $id . '/images/', 'ProductImage');
     }
+    
+    public static function createProductImage($product_id, $object)
+    {
+        return self::createResource('/products/' . $product_id . '/images', $object, 'ProductImage');    
+    }
+    
+    public static function updateProductImage($product_id, $id, $object)
+    {
+        return self::createResource('/products/' . $product_id . '/images/' . $id, $object, 'ProductImage');    
+    }
 
     /**
      * Gets collection of custom fields for a product.
