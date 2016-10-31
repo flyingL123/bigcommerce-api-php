@@ -1099,7 +1099,7 @@ class Client
      */
     public static function createSku($product_id, $object)
     {
-        return self::createResource('/products/' . $product_id, $object, 'Sku');
+        return self::createResource('/products/' . $product_id . '/skus', $object, 'Sku');
     }
 
     /**
