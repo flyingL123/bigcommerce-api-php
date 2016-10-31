@@ -374,7 +374,7 @@ class Client
     
     public static function updateProductImage($product_id, $id, $object)
     {
-        return self::createResource('/products/' . $product_id . '/images/' . $id, $object, 'ProductImage');    
+        return self::updateResource('/products/' . $product_id . '/images/' . $id, $object, 'ProductImage');    
     }
 
     /**
