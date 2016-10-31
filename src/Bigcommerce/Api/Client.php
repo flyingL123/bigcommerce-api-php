@@ -1074,9 +1074,9 @@ class Client
      * Get a Sku by id
      * @return Sku
      */
-    public static function getSku($id)
+    public static function getSku($product_id, $id)
     {
-        return self::getResource('/products/skus/' . $id, 'Sku');
+        return self::getResource('/products/' . $product_id . '/skus/' . $id, 'Sku');
     }
 
     /**
@@ -1097,9 +1097,9 @@ class Client
      * @param $object
      * @return hash|bool|mixed
      */
-    public static function createSku($object)
+    public static function createSku($product_id, $object)
     {
-        return self::createResource('/product/skus', $object);
+        return self::createResource('/products/' . $product_id, $object, 'Sku');
     }
 
     /**
@@ -1109,9 +1109,14 @@ class Client
      * @param $object
      * @return hash|bool|mixed
      */
-    public static function updateSku($id, $object)
+    public static function updateSku($product_id, $id, $object)
     {
-        return self::updateResource('/product/skus/' . $id, $object);
+        return self::updateResource('/products/' . $product_id . '/skus/' . $id, $object, 'Sku');
+    }
+    
+    public static function deleteSku($product_id, $id)
+    {
+        return self::deleteResource('/products/' . $product_id . '/skus/' . $id);  
     }
 
     /**
