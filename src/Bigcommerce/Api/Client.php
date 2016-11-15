@@ -993,17 +993,17 @@ class Client
     
     public static function getCustomerAddress($customer_id, $id)
     {
-        return self::getResource('/customers/' . $customer_id . '/addresses/' $id, 'Address');
+        return self::getResource('/customers/' . $customer_id . '/addresses/' . $id, 'Address');
     }
     
     public static function updateCustomerAddress($customer_id, $id, $object)
     {
-        return self::updateResource('/customers/' . $customer_id . '/addresses/' $id, $object, 'Address');
+        return self::updateResource('/customers/' . $customer_id . '/addresses/' . $id, $object, 'Address');
     }
     
     public static function deleteCustomerAddress($customer_id, $id)
     {
-        return self::deleteResource('/customers/' . $customer_id . '/addresses/' $id);
+        return self::deleteResource('/customers/' . $customer_id . '/addresses/' . $id);
     }
     
     public static function createCustomerAddress($customer_id, $object)
