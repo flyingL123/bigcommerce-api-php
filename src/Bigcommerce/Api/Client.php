@@ -990,6 +990,26 @@ class Client
     {
         return self::getCollection('/customers/' . $id . '/addresses', 'Address');
     }
+    
+    public static function getCustomerAddress($customer_id, $id)
+    {
+        return self::getResource('/customers/' . $customer_id . '/addresses/' $id, 'Address');
+    }
+    
+    public static function updateCustomerAddress($customer_id, $id, $object)
+    {
+        return self::updateResource('/customers/' . $customer_id . '/addresses/' $id, $object, 'Address');
+    }
+    
+    public static function deleteCustomerAddress($customer_id, $id)
+    {
+        return self::deleteResource('/customers/' . $customer_id . '/addresses/' $id);
+    }
+    
+    public static function createCustomerAddress($customer_id, $object)
+    {
+        return self::createResource('/customers/' . $customer_id . '/addresses', $object, 'Address');
+    }
 
     /**
      * Returns the collection of option sets.
