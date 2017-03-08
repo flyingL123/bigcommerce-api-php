@@ -1080,12 +1080,12 @@ class Client
         return self::updateResource('/optionsets/' . $option_set_id . '/options/'. $id, $object, 'OptionSetOption');    
     }
     
-    public static function getOptionSetOption($option_set_id, $id, $object)
+    public static function getOptionSetOption($option_set_id, $id)
     {
-        return self::getResource('/optionsets/' . $option_set_id . '/options/'. $id, $object, 'OptionSetOption');    
+        return self::getResource('/optionsets/' . $option_set_id . '/options/'. $id, 'OptionSetOption');    
     }
     
-    public static function deleteOptionSetOption($option_set_id, $id, $object)
+    public static function deleteOptionSetOption($option_set_id, $id)
     {
         return self::deleteResource('/optionsets/' . $option_set_id . '/options/'. $id);    
     }
