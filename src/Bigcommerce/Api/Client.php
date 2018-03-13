@@ -3,6 +3,7 @@
 namespace Bigcommerce\Api;
 
 use \Exception as Exception;
+use Firebase\JWT\JWT;
 
 /**
  * Bigcommerce API Client.
@@ -57,6 +58,62 @@ class Client
      * @var string
      */
     static public $api_path;
+    static private $client_id;
+    static private $store_hash;
+    static private $auth_token;
+    static private $client_secret;
+    static private $stores_prefix = '/stores/%s/v2';
+    static private $api_url = 'https://api.bigcommerce.com';
+    static private $login_url = 'https://login.bigcommerce.com';
+
+    /**
+     * Configure the API client with the required settings to access
+     * the API for a store.
+     *
+     * Accepts OAuth and (for now!) Basic Auth credentials
+     *
+     * @param array $settings
+     */
+    public static function configure($settings)
+    {
+        if (isset($settings['client_id'])) {
+            self::configureOAuth($settings);
+        } else {
+            self::configureBasicAuth($settings);
+        }
+    }
+
+    /**
+     * Configure the API client with the required OAuth credentials.
+     *
+     * Requires a settings array to be passed in with the following keys:
+     *
+     * - client_id
+     * - auth_token
+     * - store_hash
+     *
+     * @param array $settings
+     * @throws \Exception
+     */
+    public static function configureOAuth($settings)
+    {
+        if (!isset($settings['auth_token'])) {
+            throw new Exception("'auth_token' must be provided");
+        }
+
+        if (!isset($settings['store_hash'])) {
+            throw new Exception("'store_hash' must be provided");
+        }
+
+        self::$client_id = $settings['client_id'];
+        self::$auth_token = $settings['auth_token'];
+        self::$store_hash = $settings['store_hash'];
+
+        self::$client_secret = isset($settings['client_secret']) ? $settings['client_secret'] : null;
+
+        self::$api_path = self::$api_url . sprintf(self::$stores_prefix, self::$store_hash);
+        self::$connection = false;
+    }
 
     /**
      * Configure the API client with the required credentials.
@@ -70,7 +127,7 @@ class Client
      * @param array $settings
      * @throws \Exception
      */
-    public static function configure(array $settings)
+    public static function configureBasicAuth(array $settings)
     {
         if (!isset($settings['store_url'])) {
             throw new Exception("'store_url' must be provided");
@@ -95,6 +152,8 @@ class Client
      * Configure the API client to throw exceptions when HTTP errors occur.
      *
      * Note that network faults will always cause an exception to be thrown.
+     *
+     * @param bool $option sets the value of this flag
      */
     public static function failOnError($option = true)
     {
@@ -120,6 +179,8 @@ class Client
 
     /**
      * Switch SSL certificate verification on requests.
+     *
+     * @param bool $option sets the value of this flag
      */
     public static function verifyPeer($option = false)
     {
@@ -130,7 +191,7 @@ class Client
      * Connect to the internet through a proxy server.
      *
      * @param string $host host server
-     * @param bool $port port
+     * @param int|bool $port port number to use, or false
      */
     public static function useProxy($host, $port = false)
     {
@@ -158,7 +219,11 @@ class Client
     {
         if (!self::$connection) {
             self::$connection = new Connection();
-            self::$connection->authenticate(self::$username, self::$api_key);
+            if (self::$client_id) {
+                self::$connection->authenticateOauth(self::$client_id, self::$auth_token);
+            } else {
+                self::$connection->authenticateBasic(self::$username, self::$api_key);
+            }
         }
 
         return self::$connection;
@@ -222,7 +287,9 @@ class Client
     {
         $response = self::connection()->get(self::$api_path . $path);
 
-        if ($response == false || is_string($response)) return $response;
+        if ($response == false || is_string($response)) {
+            return $response;
+        }
 
         return $response->count;
     }
@@ -232,11 +299,13 @@ class Client
      *
      * @param string $path api endpoint
      * @param mixed $object object or XML string to create
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function createResource($path, $object, $resource = 'Resource')
     {
-        if (is_array($object)) $object = (object)$object;
+        if (is_array($object)) {
+            $object = (object)$object;
+        }
 
         $response = self::connection()->post(self::$api_path . $path, $object);
         
@@ -248,11 +317,13 @@ class Client
      *
      * @param string $path api endpoint
      * @param mixed $object object or XML string to update
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function updateResource($path, $object, $resource = 'Resource')
     {
-        if (is_array($object)) $object = (object)$object;
+        if (is_array($object)) {
+            $object = (object)$object;
+        }
 
         $response = self::connection()->put(self::$api_path . $path, $object);
         
@@ -263,7 +334,7 @@ class Client
      * Send a delete request to remove the specified resource.
      *
      * @param string $path api endpoint
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function deleteResource($path)
     {
@@ -279,7 +350,9 @@ class Client
      */
     private static function mapCollection($resource, $object)
     {
-        if ($object == false || is_string($object)) return $object;
+        if ($object == false || is_string($object)) {
+            return $object;
+        }
 
         $baseResource = __NAMESPACE__ . '\\' . $resource;
         self::$resource = (class_exists($baseResource)) ? $baseResource : 'Bigcommerce\\Api\\Resources\\' . $resource;
@@ -290,7 +363,7 @@ class Client
     /**
      * Callback for mapping collection objects resource classes.
      *
-     * @param stdClass $object
+     * @param \stdClass $object
      * @return Resource
      */
     private static function mapCollectionObject($object)
@@ -304,12 +377,14 @@ class Client
      * Map a single object to a resource class.
      *
      * @param string $resource name of the resource class
-     * @param stdClass $object
+     * @param \stdClass $object
      * @return Resource
      */
     private static function mapResource($resource, $object)
     {
-        if ($object == false || is_string($object)) return $object;
+        if ($object == false || is_string($object)) {
+            return $object;
+        }
 
         $baseResource = __NAMESPACE__ . '\\' . $resource;
         $class = (class_exists($baseResource)) ? $baseResource : 'Bigcommerce\\Api\\Resources\\' . $resource;
@@ -320,26 +395,70 @@ class Client
     /**
      * Map object representing a count to an integer value.
      *
-     * @param stdClass $object
+     * @param \stdClass $object
      * @return int
      */
     private static function mapCount($object)
     {
-        if ($object == false || is_string($object)) return $object;
+        if ($object == false || is_string($object)) {
+            return $object;
+        }
 
         return $object->count;
     }
 
     /**
+     * Swaps a temporary access code for a long expiry auth token.
+     *
+     * @param \stdClass $object
+     * @return \stdClass
+     */
+    public static function getAuthToken($object)
+    {
+        $context = array_merge(array('grant_type' => 'authorization_code'), (array)$object);
+        $connection = new Connection();
+
+        return $connection->post(self::$login_url . '/oauth2/token', $context);
+    }
+
+    public static function getCustomerLoginToken($id, $redirectUrl = '', $requestIp = '')
+    {
+        if (empty(self::$client_secret)) {
+            throw new Exception('Cannot sign customer login tokens without a client secret');
+        }
+
+        $payload = array(
+            'iss' => self::$client_id,
+            'iat' => time(),
+            'jti' => bin2hex(random_bytes(32)),
+            'operation' => 'customer_login',
+            'store_hash' => self::$store_hash,
+            'customer_id' => $id
+        );
+
+        if (!empty($redirectUrl)) {
+            $payload['redirect_to'] = $redirectUrl;
+        }
+
+        if (!empty($requestIp)) {
+            $payload['request_ip'] = $requestIp;
+        }
+
+        return JWT::encode($payload, self::$client_secret, 'HS256');
+    }
+
+    /**
      * Pings the time endpoint to test the connection to a store.
      *
-     * @return DateTime
+     * @return \DateTime
      */
     public static function getTime()
     {
         $response = self::connection()->get(self::$api_path . '/time');
 
-        if ($response == false || is_string($response)) return $response;
+        if ($response == false || is_string($response)) {
+            return $response;
+        }
 
         return new \DateTime("@{$response->time}");
     }
@@ -406,7 +525,7 @@ class Client
      * Gets collection of custom fields for a product.
      *
      * @param int $id product ID
-     * @return mixed array|string list of products or XML string if useXml is true
+     * @return array|string list of products or XML string if useXml is true
      */
     public static function getProductCustomFields($id)
     {
@@ -417,7 +536,7 @@ class Client
      * Returns a single custom field by given id
      * @param  int $product_id product id
      * @param  int $id custom field id
-     * @return ProductCustomField|bool Returns ProductCustomField if exists, false if not exists
+     * @return Resources\ProductCustomField|bool Returns ProductCustomField if exists, false if not exists
      */
     public static function getProductCustomField($product_id, $id)
     {
@@ -453,7 +572,7 @@ class Client
      * @param int $product_id product id
      * @param int $id custom field id
      * @param mixed $object custom field to update
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function updateProductCustomField($product_id, $id, $object)
     {
@@ -465,7 +584,7 @@ class Client
      *
      * @param int $product_id product id
      * @param int $id custom field id
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function deleteProductCustomField($product_id, $id)
     {
@@ -476,7 +595,7 @@ class Client
      * Returns the total number of products in the collection.
      *
      * @param array $filter
-     * @return mixed int|string number of products or XML string if useXml is true
+     * @return int|string number of products or XML string if useXml is true
      */
     public static function getProductsCount($filter = array())
     {
@@ -488,7 +607,7 @@ class Client
      * Returns a single product resource by the given id.
      *
      * @param int $id product id
-     * @return Product|string
+     * @return Resources\Product|string
      */
     public static function getProduct($id)
     {
@@ -499,7 +618,7 @@ class Client
      * Create a new product.
      *
      * @param mixed $object fields to create
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function createProduct($object)
     {
@@ -511,7 +630,7 @@ class Client
      *
      * @param int $id product id
      * @param mixed $object fields to update
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function updateProduct($id, $object)
     {
@@ -522,7 +641,7 @@ class Client
      * Delete the given product.
      *
      * @param int $id product id
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function deleteProduct($id)
     {
@@ -532,7 +651,7 @@ class Client
     /**
      * Delete all products.
      *
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function deleteAllProducts()
     {
@@ -554,13 +673,24 @@ class Client
     /**
      * Create Options
      * @param $object
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function createOption($object)
     {
         return self::createResource('/options', $object, 'Option');
     }
 
+    /**
+     * Update the given option.
+     *
+     * @param int $id category id
+     * @param mixed $object
+     * @return mixed
+     */
+    public static function updateOption($id, $object)
+    {
+        return self::updateResource('/options/' . $id, $object);
+    }
 
     /**
      * Return the number of options in the collection
@@ -576,19 +706,18 @@ class Client
      * Return a single option by given id.
      *
      * @param int $id option id
-     * @return Option
+     * @return Resources\Option
      */
     public static function getOption($id)
     {
         return self::getResource('/options/' . $id, 'Option');
     }
 
-
     /**
      * Delete the given option.
      *
      * @param int $id option id
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function deleteOption($id)
     {
@@ -605,7 +734,7 @@ class Client
      *
      * @param int $option_id option id
      * @param int $id value id
-     * @return OptionValue
+     * @return Resources\OptionValue
      */
     public static function getOptionValue($option_id, $id)
     {
@@ -667,7 +796,7 @@ class Client
      * A single category by given id.
      *
      * @param int $id category id
-     * @return Category
+     * @return Resources\Category
      */
     public static function getCategory($id)
     {
@@ -678,7 +807,7 @@ class Client
      * Create a new category from the given data.
      *
      * @param mixed $object
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function createCategory($object)
     {
@@ -690,7 +819,7 @@ class Client
      *
      * @param int $id category id
      * @param mixed $object
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function updateCategory($id, $object)
     {
@@ -701,7 +830,7 @@ class Client
      * Delete the given category.
      *
      * @param int $id category id
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function deleteCategory($id)
     {
@@ -711,7 +840,7 @@ class Client
     /**
      * Delete all categories.
      *
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function deleteAllCategories()
     {
@@ -746,7 +875,7 @@ class Client
      * A single brand by given id.
      *
      * @param int $id brand id
-     * @return Brand
+     * @return Resources\Brand
      */
     public static function getBrand($id)
     {
@@ -757,7 +886,7 @@ class Client
      * Create a new brand from the given data.
      *
      * @param mixed $object
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function createBrand($object)
     {
@@ -769,7 +898,7 @@ class Client
      *
      * @param int $id brand id
      * @param mixed $object
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function updateBrand($id, $object)
     {
@@ -780,7 +909,7 @@ class Client
      * Delete the given brand.
      *
      * @param int $id brand id
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function deleteBrand($id)
     {
@@ -790,7 +919,7 @@ class Client
     /**
      * Delete all brands.
      *
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function deleteAllBrands()
     {
@@ -822,10 +951,23 @@ class Client
     }
 
     /**
+     * The order count grouped by order status
+     *
+     * @param array $filter
+     * @return Resources\OrderStatus
+     */
+    public static function getOrderStatusesWithCounts($filter = array())
+    {
+        $filter = Filter::create($filter);
+        $resource = self::getResource('/orders/count' . $filter->toQuery(), "OrderStatus");
+        return $resource->statuses;
+    }
+
+    /**
      * A single order.
      *
      * @param int $id order id
-     * @return Order
+     * @return Resources\Order
      */
     public static function getOrder($id)
     {
@@ -859,7 +1001,7 @@ class Client
      * delete the order).
      *
      * @param int $id order id
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function deleteOrder($id)
     {
@@ -869,7 +1011,7 @@ class Client
     /**
      * Delete all orders.
      *
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function deleteAllOrders()
     {
@@ -880,7 +1022,7 @@ class Client
      * Create an order
      *
      * @param $object
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function createOrder($object)
     {
@@ -892,7 +1034,7 @@ class Client
      *
      * @param int $id order id
      * @param mixed $object fields to update
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function updateOrder($id, $object)
     {
@@ -939,7 +1081,7 @@ class Client
      * A single customer by given id.
      *
      * @param int $id customer id
-     * @return Customer
+     * @return Resources\Customer
      */
     public static function getCustomer($id)
     {
@@ -950,7 +1092,7 @@ class Client
      * Create a new customer from the given data.
      *
      * @param mixed $object
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function createCustomer($object)
     {
@@ -962,7 +1104,7 @@ class Client
      *
      * @param int $id customer id
      * @param mixed $object
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function updateCustomer($id, $object)
     {
@@ -973,7 +1115,7 @@ class Client
      * Delete the given customer.
      *
      * @param int $id customer id
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function deleteCustomer($id)
     {
@@ -1027,7 +1169,7 @@ class Client
      * Create Optionsets
      *
      * @param $object
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function createOptionSet($object)
     {
@@ -1043,16 +1185,17 @@ class Client
     }
         
     /**
-     * A single option set by given id.
+     * Create Option Set Options
      *
-     * @param int $id option set id
-     * @return OptionSet
+     * @param $object
+     * @param $id
+     * @return mixed
      */
-    public static function getOptionSet($id)
+    public static function createOptionSetOption($object, $id)
     {
         return self::getResource('/optionsets/' . $id, 'OptionSet');
     }
-    
+
     /**
      * Returns the total number of option sets in the collection.
      *
@@ -1066,9 +1209,8 @@ class Client
     /**
      * Create Optionset Options
      *
-     * @param $object
-     * @param $id
-     * @return hash|bool|mixed
+     * @param int $id option set id
+     * @return Resources\OptionSet
      */
     public static function createOptionSetOption($id, $object)
     {
@@ -1091,9 +1233,34 @@ class Client
     }
 
     /**
-     * Status codes used to represent the state of an order.
+     * Update the given option set.
      *
-     * @return array
+     * @param int $id option set id
+     * @param mixed $object
+     * @return mixed
+     */
+    public static function updateOptionSet($id, $object)
+    {
+        return self::updateResource('/optionsets/' . $id, $object);
+    }
+
+    /**
+     * Delete the given option set.
+     *
+     * @param int $id option id
+     * @return mixed
+     */
+    public static function deleteOptionSet($id)
+    {
+        Client::deleteResource('/optionsets/' . $id);
+    }
+
+    /**
+     * Status code used to represent the state of an order.
+     *
+     * @param int $id order status id
+     *
+     * @return mixed
      */
     public static function getOrderStatus($id)
     {
@@ -1132,14 +1299,15 @@ class Client
     }
 
     /**
-     * Create sku
+     * Create a SKU
      *
+     * @param $productId
      * @param $object
-     * @return hash|bool|mixed
+     * @return mixed
      */
-    public static function createSku($product_id, $object)
+    public static function createSku($productId, $object)
     {
-        return self::createResource('/products/' . $product_id . '/skus', $object, 'Sku');
+        return self::createResource('/products/' . $productId . '/skus', $object);
     }
 
     /**
@@ -1147,7 +1315,7 @@ class Client
      *
      * @param $id
      * @param $object
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function updateSku($product_id, $id, $object)
     {
@@ -1160,10 +1328,20 @@ class Client
     }
 
     /**
+     * Returns the total number of SKUs in the collection.
+     *
+     * @return int
+     */
+    public static function getSkusCount()
+    {
+        return self::getCount('/products/skus/count');
+    }
+
+    /**
      * Get a single coupon by given id.
      *
      * @param int $id customer id
-     * @return Coupon
+     * @return Resources\Coupon
      */
     public static function getCoupon($id)
     {
@@ -1186,7 +1364,7 @@ class Client
      * Create coupon
      *
      * @param $object
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function createCoupon($object)
     {
@@ -1198,7 +1376,7 @@ class Client
      *
      * @param $id
      * @param $object
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function updateCoupon($id, $object)
     {
@@ -1209,7 +1387,7 @@ class Client
      * Delete the given coupon.
      *
      * @param int $id coupon id
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function deleteCoupon($id)
     {
@@ -1219,7 +1397,7 @@ class Client
     /**
      * Delete all Coupons.
      *
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function deleteAllCoupons()
     {
@@ -1264,12 +1442,14 @@ class Client
         if (!$limit) {
             $result = self::getTime();
 
-            if (!$result) return false;
+            if (!$result) {
+                return false;
+            }
 
             $limit = self::connection()->getHeader('X-BC-ApiLimit-Remaining');
         }
 
-        return intval($limit);
+        return (int)$limit;
     }
 
     /**
@@ -1302,7 +1482,7 @@ class Client
      *
      * @param $orderID
      * @param $object
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function createShipment($orderID, $object)
     {
@@ -1315,7 +1495,7 @@ class Client
      * @param $orderID
      * @param $shipmentID
      * @param $object
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function updateShipment($orderID, $shipmentID, $object)
     {
@@ -1327,7 +1507,7 @@ class Client
      *
      * @param $orderID
      * @param $shipmentID
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function deleteShipment($orderID, $shipmentID)
     {
@@ -1338,7 +1518,7 @@ class Client
      * Delete all Shipments for the given order.
      *
      * @param $orderID
-     * @return hash|bool|mixed
+     * @return mixed
      */
     public static function deleteAllShipmentsForOrder($orderID)
     {
@@ -1369,46 +1549,583 @@ class Client
         $filter = Filter::create($filter);
         return self::getCollection('/orders/' . $orderID . '/shipping_addresses' . $filter->toQuery(), 'Address');
     }
-    
+
     /**
-     * Create a product review for a given product
-     * 
-     * @param $productID
-     * @param $object
-     * @return hash|bool|mixed
-     */
-    public static function createProductReview($productID, $object)
-    {
-       return self::createResource('/products/' . $productID . '/reviews', $object);
-    }
-    
-    /**
-     * Update a product review
+     * Create a new currency.
      *
-     * @param $productID
-     * @param $productReviewID
-     * @param $object
-     * @return hash|bool|mixed
-     */
-    public static function updateProductReview($productID, $productReviewID, $object)
-    {
-        return self::updateResource('/products/' . $productID . '/reviews/' . $productReviewID, $object);
-    }
-    
-    /**
-     * Get a single product review
-     *
-     * @param $productID
-     * @param $productReviewID
+     * @param mixed $object fields to create
      * @return mixed
      */
-    public static function getProductReview($productID, $productReviewID)
+    public static function createCurrency($object)
     {
-        return self::getResource('/products/' . $productID . '/reviews/' . $productReviewID, 'ProductReview');
+        return self::createResource('/currencies', $object);
+    }
+
+    /**
+     * Returns a single currency resource by the given id.
+     *
+     * @param int $id currency id
+     * @return Resources\Currency|string
+     */
+    public static function getCurrency($id)
+    {
+        return self::getResource('/currencies/' . $id, 'Currency');
+    }
+
+    /**
+     * Update the given currency.
+     *
+     * @param int $id currency id
+     * @param mixed $object fields to update
+     * @return mixed
+     */
+    public static function updateCurrency($id, $object)
+    {
+        return self::updateResource('/currencies/' . $id, $object);
+    }
+
+    /**
+     * Delete the given currency.
+     *
+     * @param int $id currency id
+     * @return mixed
+     */
+    public static function deleteCurrency($id)
+    {
+        return self::deleteResource('/currencies/' . $id);
+    }
+
+    /**
+     * Returns the default collection of currencies.
+     *
+     * @param array $filter
+     * @return mixed array|string list of currencies or XML string if useXml is true
+     */
+    public static function getCurrencies($filter = array())
+    {
+        $filter = Filter::create($filter);
+        return self::getCollection('/currencies' . $filter->toQuery(), 'Currency');
+    }
+
+    /**
+     * Create a new product image.
+     *
+     * @param string $productId
+     * @param mixed $object
+     * @return mixed
+     */
+    public static function createProductImage($productId, $object)
+    {
+        return self::createResource('/products/' . $productId . '/images', $object);
+    }
+
+    /**
+     * Update a product image.
+     *
+     * @param string $productId
+     * @param string $imageId
+     * @param mixed $object
+     * @return mixed
+     */
+    public static function updateProductImage($productId, $imageId, $object)
+    {
+        return self::updateResource('/products/' . $productId . '/images/' . $imageId, $object);
+    }
+
+    /**
+     * Returns a product image resource by the given product id.
+     *
+     * @param int $productId
+     * @param int $imageId
+     * @return Resources\ProductImage|string
+     */
+    public static function getProductImage($productId, $imageId)
+    {
+        return self::getResource('/products/' . $productId . '/images/' . $imageId, 'ProductImage');
+    }
+
+    /**
+     * Delete the given product image.
+     *
+     * @param int $productId
+     * @param int $imageId
+     * @return mixed
+     */
+    public static function deleteProductImage($productId, $imageId)
+    {
+        return self::deleteResource('/products/' . $productId . '/images/' . $imageId);
+    }
+
+    /**
+     * Get all content pages
+     *
+     * @return mixed
+     */
+    public static function getPages()
+    {
+        return self::getCollection('/pages', 'Page');
+    }
+
+    /**
+     * Get single content pages
+     *
+     * @param int $pageId
+     * @return mixed
+     */
+    public static function getPage($pageId)
+    {
+        return self::getResource('/pages/' . $pageId, 'Page');
+    }
+
+    /**
+     * Create a new content pages
+     *
+     * @param $object
+     * @return mixed
+     */
+    public static function createPage($object)
+    {
+        return self::createResource('/pages', $object);
+    }
+
+    /**
+     * Update an existing content page
+     *
+     * @param int $pageId
+     * @param $object
+     * @return mixed
+     */
+    public static function updatePage($pageId, $object)
+    {
+        return self::updateResource('/pages/' . $pageId, $object);
+    }
+
+    /**
+     * Delete an existing content page
+     *
+     * @param int $pageId
+     * @return mixed
+     */
+    public static function deletePage($pageId)
+    {
+        return self::deleteResource('/pages/' . $pageId);
+    }
+
+    /**
+     * Create a Gift Certificate
+     *
+     * @param array $object
+     * @return mixed
+     */
+    public static function createGiftCertificate($object)
+    {
+        return self::createResource('/gift_certificates', $object);
+    }
+
+    /**
+     * Get a Gift Certificate
+     *
+     * @param int $giftCertificateId
+     * @return mixed
+     */
+    public static function getGiftCertificate($giftCertificateId)
+    {
+        return self::getResource('/gift_certificates/' . $giftCertificateId);
+    }
+
+    /**
+     * Return the collection of all gift certificates.
+     *
+     * @param array $filter
+     * @return mixed
+     */
+    public static function getGiftCertificates($filter = array())
+    {
+        $filter = Filter::create($filter);
+        return self::getCollection('/gift_certificates' . $filter->toQuery());
+    }
+
+    /**
+     * Update a Gift Certificate
+     *
+     * @param int $giftCertificateId
+     * @param array $object
+     * @return mixed
+     */
+    public static function updateGiftCertificate($giftCertificateId, $object)
+    {
+        return self::updateResource('/gift_certificates/' . $giftCertificateId, $object);
+    }
+
+    /**
+     * Delete a Gift Certificate
+     *
+     * @param int $giftCertificateId
+     * @return mixed
+     */
+    public static function deleteGiftCertificate($giftCertificateId)
+    {
+        return self::deleteResource('/gift_certificates/' . $giftCertificateId);
+    }
+
+    /**
+     * Delete all Gift Certificates
+     *
+     * @return mixed
+     */
+    public static function deleteAllGiftCertificates()
+    {
+        return self::deleteResource('/gift_certificates');
+    }
+
+    /**
+     * Create Product Review
+     *
+     * @param int $productId
+     * @param array $object
+     * @return mixed
+     */
+    public static function createProductReview($productId, $object)
+    {
+        return self::createResource('/products/' . $productId . '/reviews', $object);
+    }
+
+    /**
+     * Create Product Bulk Discount rules
+     *
+     * @param string $productId
+     * @param array $object
+     * @return mixed
+     */
+    public static function createProductBulkPricingRules($productId, $object)
+    {
+        return self::createResource('/products/' . $productId . '/discount_rules', $object);
+    }
+
+    /**
+     * Create a Marketing Banner
+     *
+     * @param array $object
+     * @return mixed
+     */
+    public static function createMarketingBanner($object)
+    {
+        return self::createResource('/banners', $object);
+    }
+
+    /**
+     * Get all Marketing Banners
+     *
+     * @return mixed
+     */
+    public static function getMarketingBanners()
+    {
+        return self::getCollection('/banners');
+    }
+
+    /**
+     * Delete all Marketing Banners
+     *
+     * @return mixed
+     */
+    public static function deleteAllMarketingBanners()
+    {
+        return self::deleteResource('/banners');
+    }
+
+    /**
+     * Delete a specific Marketing Banner
+     *
+     * @param int $bannerID
+     * @return mixed
+     */
+    public static function deleteMarketingBanner($bannerID)
+    {
+        return self::deleteResource('/banners/' . $bannerID);
+    }
+
+    /**
+     * Update an existing banner
+     *
+     * @param int $bannerID
+     * @param array $object
+     * @return mixed
+     */
+    public static function updateMarketingBanner($bannerID, $object)
+    {
+        return self::updateResource('/banners/' . $bannerID, $object);
+    }
+
+    /**
+     * Add a address to the customer's address book.
+     *
+     * @param int $customerID
+     * @param array $object
+     * @return mixed
+     */
+    public static function createCustomerAddress($customerID, $object)
+    {
+        return self::createResource('/customers/' . $customerID . '/addresses', $object);
+    }
+
+    /**
+     * Create a product rule
+     *
+     * @param int $productID
+     * @param array $object
+     * @return mixed
+     */
+    public static function createProductRule($productID, $object)
+    {
+        return self::createResource('/products/' . $productID . '/rules', $object);
+    }
+
+    /**
+     * Create a customer group.
+     *
+     * @param array $object
+     * @return mixed
+     */
+    public static function createCustomerGroup($object)
+    {
+        return self::createResource('/customer_groups', $object);
+    }
+
+    /**
+     * Get list of customer groups
+     *
+     * @return mixed
+     */
+    public static function getCustomerGroups()
+    {
+        return self::getCollection('/customer_groups');
+    }
+
+    /**
+     * Delete a customer group
+     *
+     * @param int $customerGroupId
+     * @return mixed
+     */
+    public static function deleteCustomerGroup($customerGroupId)
+    {
+        return self::deleteResource('/customer_groups/' . $customerGroupId);
+    }
+
+    /**
+     * Delete all customers
+     *
+     * @return mixed
+     */
+    public static function deleteAllCustomers()
+    {
+        return self::deleteResource('/customers');
+    }
+
+    /**
+     * Delete all options
+     *
+     * @return mixed
+     */
+    public static function deleteAllOptions()
+    {
+        return self::deleteResource('/options');
+    }
+
+    /**
+     * Return the collection of all option values for a given option.
+     *
+     * @param int $productId
+     * @return mixed
+     */
+    public static function getProductOptions($productId)
+    {
+        return self::getCollection('/products/' . $productId . '/options');
+    }
+
+    /**
+     * Return the collection of all option values for a given option.
+     *
+     * @param int $productId
+     * @param int $productOptionId
+     * @return mixed
+     */
+    public static function getProductOption($productId, $productOptionId)
+    {
+        return self::getResource('/products/' . $productId . '/options/' . $productOptionId);
+    }
+
+    /**
+     * Return the collection of all option values for a given option.
+     *
+     * @param int $productId
+     * @param int $productRuleId
+     * @return mixed
+     */
+    public static function getProductRule($productId, $productRuleId)
+    {
+        return self::getResource('/products/' . $productId . '/rules/' . $productRuleId);
+    }
+
+    /**
+     * Return the option value object that was created.
+     *
+     * @param int $optionId
+     * @param array $object
+     * @return mixed
+     */
+    public static function createOptionValue($optionId, $object)
+    {
+        return self::createResource('/options/' . $optionId . '/values', $object);
+    }
+
+    /**
+     * Delete all option sets that were created.
+     *
+     * @return mixed
+     */
+    public static function deleteAllOptionSets()
+    {
+        return self::deleteResource('/optionsets');
+    }
+
+    /**
+     * Return the option value object that was updated.
+     *
+     * @param int $optionId
+     * @param int $optionValueId
+     * @param array $object
+     * @return mixed
+     */
+    public static function updateOptionValue($optionId, $optionValueId, $object)
+    {
+        return self::updateResource(
+            '/options/' . $optionId . '/values/' . $optionValueId,
+            $object
+        );
     }
     
-    public static function deleteProductReview($productID, $productReviewID)
+    /**
+     * Returns all webhooks.
+     *
+     * @return mixed Resource|string resource object or XML string if useXml is true
+     */
+    public static function listWebhooks()
     {
-        return self::deleteResource('/products/' . $productID . '/reviews/' . $productReviewID);
+        return self::getCollection('/hooks');
+    }
+    
+    /**
+     * Returns data for a specific web-hook.
+     *
+     * @param int $id
+     * @return mixed Resource|string resource object or XML string if useXml is true
+     */
+    public static function getWebhook($id)
+    {
+        return self::getResource('/hooks/' . $id);
+    }
+    
+    /**
+     * Creates a web-hook.
+     *
+     * @param mixed $object object or XML string to create
+     * @return mixed
+     */
+    public static function createWebhook($object)
+    {
+        return self::createResource('/hooks', $object);
+    }
+    
+    /**
+     * Updates the given webhook.
+     *
+     * @param int $id
+     * @param mixed $object object or XML string to create
+     * @return mixed
+     */
+    public static function updateWebhook($id, $object)
+    {
+        return self::updateResource('/hooks/' . $id, $object);
+    }
+    
+    /**
+     * Delete the given webhook.
+     *
+     * @param int $id
+     * @return mixed
+     */
+    public static function deleteWebhook($id)
+    {
+        return self::deleteResource('/hooks/' . $id);
+    }
+
+    /**
+     * Return a collection of shipping-zones
+     *
+     * @return mixed
+     */
+    public static function getShippingZones()
+    {
+        return self::getCollection('/shipping/zones/', 'ShippingZone');
+    }
+
+    /**
+     * Return a shipping-zone by id
+     *
+     * @param int $id shipping-zone id
+     * @return mixed
+     */
+    public static function getShippingZone($id)
+    {
+        return self::getResource('/shipping/zones/' . $id, 'ShippingZone');
+    }
+
+
+    /**
+     * Delete the given shipping-zone
+     *
+     * @param int $id shipping-zone id
+     * @return mixed
+     */
+    public static function deleteShippingZone($id)
+    {
+        return self::deleteResource('/shipping/zones/' . $id);
+    }
+
+    /**
+     * Return a shipping-method by id
+     *
+     * @param $zoneId
+     * @param $methodId
+     * @return mixed
+     */
+    public static function getShippingMethod($zoneId, $methodId)
+    {
+        return self::getResource('/shipping/zones/'. $zoneId . '/methods/'. $methodId, 'ShippingMethod');
+    }
+
+    /**
+     * Return a collection of shipping-methods
+     *
+     * @param $zoneId
+     * @return mixed
+     */
+    public static function getShippingMethods($zoneId)
+    {
+        return self::getCollection('/shipping/zones/' . $zoneId . '/methods', 'ShippingMethod');
+    }
+
+
+    /**
+     * Delete the given shipping-method by id
+     *
+     * @param $zoneId
+     * @param $methodId
+     * @return mixed
+     */
+    public static function deleteShippingMethod($zoneId, $methodId)
+    {
+        return self::deleteResource('/shipping/zones/'. $zoneId . '/methods/'. $methodId);
     }
 }

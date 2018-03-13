@@ -8,6 +8,19 @@ namespace Bigcommerce\Api;
 class Connection
 {
     /**
+     * XML media type.
+     */
+    const MEDIA_TYPE_XML = 'application/xml';
+    /**
+     * JSON media type.
+     */
+    const MEDIA_TYPE_JSON = 'application/json';
+    /**
+     * Default urlencoded media type.
+     */
+    const MEDIA_TYPE_WWW = 'application/x-www-form-urlencoded';
+
+    /**
      * @var resource cURL resource
      */
     private $curl;
@@ -59,24 +72,34 @@ class Connection
 
     /**
      * Deal with failed requests if failOnError is not set.
-     * @var string | false
+     * @var string|false
      */
     private $lastError = false;
 
     /**
-     * Determines whether requests and responses should be treated
-     * as XML. Defaults to false (using JSON).
+     * Determines whether the response body should be returned as a raw string.
      */
-    private $useXml = false;
+    private $rawResponse = false;
+
+    /**
+     * Determines the default content type to use with requests and responses.
+     */
+    private $contentType;
 
     /**
      * Initializes the connection object.
      */
     public function __construct()
     {
+        if (!defined('STDIN')) {
+            define('STDIN', fopen('php://stdin', 'r'));
+        }
         $this->curl = curl_init();
         curl_setopt($this->curl, CURLOPT_HEADERFUNCTION, array($this, 'parseHeader'));
         curl_setopt($this->curl, CURLOPT_WRITEFUNCTION, array($this, 'parseBody'));
+
+	// Set to a blank string to make cURL include all encodings it can handle (gzip, deflate, identity) in the 'Accept-Encoding' request header and respect the 'Content-Encoding' response header
+	curl_setopt($this->curl, CURLOPT_ENCODING, '');
 
         if (!ini_get("open_basedir")) {
             curl_setopt($this->curl, CURLOPT_FOLLOWLOCATION, true);
@@ -90,10 +113,31 @@ class Connection
     /**
      * Controls whether requests and responses should be treated
      * as XML. Defaults to false (using JSON).
+     *
+     * @param bool $option the new state of this feature
      */
     public function useXml($option = true)
     {
-        $this->useXml = $option;
+        if ($option) {
+            $this->contentType = self::MEDIA_TYPE_XML;
+            $this->rawResponse = true;
+        } else {
+            $this->contentType = self::MEDIA_TYPE_JSON;
+            $this->rawResponse = false;
+        }
+    }
+
+    /**
+     * Controls whether requests or responses should be treated
+     * as urlencoded form data.
+     *
+     * @param bool $option the new state of this feature
+     */
+    public function useUrlEncoded($option = true)
+    {
+        if ($option) {
+            $this->contentType = self::MEDIA_TYPE_WWW;
+        }
     }
 
     /**
@@ -108,6 +152,8 @@ class Connection
      *
      * <p><em>Note that this doesn't use the builtin CURL_FAILONERROR option,
      * as this fails fast, making the HTTP body and headers inaccessible.</em></p>
+     *
+     * @param bool $option the new state of this feature
      */
     public function failOnError($option = true)
     {
@@ -116,10 +162,25 @@ class Connection
 
     /**
      * Sets the HTTP basic authentication.
+     *
+     * @param string $username
+     * @param string $password
      */
-    public function authenticate($username, $password)
+    public function authenticateBasic($username, $password)
     {
         curl_setopt($this->curl, CURLOPT_USERPWD, "$username:$password");
+    }
+
+    /**
+     * Sets Oauth authentication headers
+     *
+     * @param string $clientId
+     * @param string $authToken
+     */
+    public function authenticateOauth($clientId, $authToken)
+    {
+        $this->addHeader('X-Auth-Client', $clientId);
+        $this->addHeader('X-Auth-Token', $authToken);
     }
 
     /**
@@ -136,6 +197,9 @@ class Connection
 
     /**
      * Set a proxy server for outgoing requests to tunnel through.
+     *
+     * @param string $server
+     * @param int|bool $port optional port number
      */
     public function useProxy($server, $port = false)
     {
@@ -157,6 +221,9 @@ class Connection
 
     /**
      * Add a custom header to the request.
+     *
+     * @param string $header
+     * @param string $value
      */
     public function addHeader($header, $value)
     {
@@ -164,11 +231,23 @@ class Connection
     }
 
     /**
+     * Remove a header from the request.
+     *
+     * @param string $header
+     */
+    public function removeHeader($header)
+    {
+        unset($this->headers[$header]);
+    }
+
+    /**
      * Get the MIME type that should be used for this request.
+     *
+     * Defaults to application/json
      */
     private function getContentType()
     {
-        return ($this->useXml) ? 'application/xml' : 'application/json';
+        return ($this->contentType) ? $this->contentType : self::MEDIA_TYPE_JSON;
     }
 
     /**
@@ -177,7 +256,6 @@ class Connection
      */
     private function initializeRequest()
     {
-        $this->isComplete = false;
         $this->responseBody = '';
         $this->responseHeaders = array();
         $this->lastError = false;
@@ -202,7 +280,7 @@ class Connection
             throw new NetworkError(curl_error($this->curl), curl_errno($this->curl));
         }
 
-        $body = ($this->useXml) ? $this->getBody() : json_decode($this->getBody());
+        $body = ($this->rawResponse) ? $this->getBody() : json_decode($this->getBody());
 
         $status = $this->getStatus();
 
@@ -239,7 +317,7 @@ class Connection
     }
 
     /**
-     * Recursively follow redirect until an OK response is recieved or
+     * Recursively follow redirect until an OK response is received or
      * the maximum redirects limit is reached.
      *
      * Only 301 and 302 redirects are handled. Redirects from POST and PUT requests will
@@ -250,9 +328,7 @@ class Connection
         $this->redirectsFollowed++;
 
         if ($this->getStatus() == 301 || $this->getStatus() == 302) {
-
             if ($this->redirectsFollowed < $this->maxRedirects) {
-
                 $location = $this->getHeader('Location');
                 $forwardTo = parse_url($location);
 
@@ -276,6 +352,11 @@ class Connection
 
     /**
      * Make an HTTP GET request to the specified endpoint.
+     *
+     * @param string $url URL to retrieve
+     * @param array|bool $query Optional array of query string parameters
+     *
+     * @return mixed
      */
     public function get($url, $query = false)
     {
@@ -287,6 +368,8 @@ class Connection
 
         curl_setopt($this->curl, CURLOPT_CUSTOMREQUEST, 'GET');
         curl_setopt($this->curl, CURLOPT_URL, $url);
+        curl_setopt($this->curl, CURLOPT_POST, false);
+        curl_setopt($this->curl, CURLOPT_PUT, false);
         curl_setopt($this->curl, CURLOPT_HTTPGET, true);
         curl_exec($this->curl);
 
@@ -295,6 +378,11 @@ class Connection
 
     /**
      * Make an HTTP POST request to the specified endpoint.
+     *
+     * @param string $url URL to which we send the request
+     * @param mixed $body Data payload (JSON string or raw data)
+     *
+     * @return mixed
      */
     public function post($url, $body)
     {
@@ -309,6 +397,8 @@ class Connection
         curl_setopt($this->curl, CURLOPT_CUSTOMREQUEST, 'POST');
         curl_setopt($this->curl, CURLOPT_URL, $url);
         curl_setopt($this->curl, CURLOPT_POST, true);
+        curl_setopt($this->curl, CURLOPT_PUT, false);
+        curl_setopt($this->curl, CURLOPT_HTTPGET, false);
         curl_setopt($this->curl, CURLOPT_POSTFIELDS, $body);
         curl_exec($this->curl);
 
@@ -318,8 +408,8 @@ class Connection
     /**
      * Make an HTTP HEAD request to the specified endpoint.
      *
-     * @param $url
-     * @return bool|mixed|string
+     * @param string $url URL to which we send the request
+     * @return mixed
      */
     public function head($url)
     {
@@ -339,9 +429,9 @@ class Connection
      * Requires a tmpfile() handle to be opened on the system, as the cURL
      * API requires it to send data.
      *
-     * @param $url
-     * @param $body
-     * @return bool|mixed|string
+     * @param string $url URL to which we send the request
+     * @param mixed $body Data payload (JSON string or raw data)
+     * @return mixed
      */
     public function put($url, $body)
     {
@@ -361,6 +451,8 @@ class Connection
 
         curl_setopt($this->curl, CURLOPT_CUSTOMREQUEST, 'PUT');
         curl_setopt($this->curl, CURLOPT_URL, $url);
+        curl_setopt($this->curl, CURLOPT_HTTPGET, false);
+        curl_setopt($this->curl, CURLOPT_POST, false);
         curl_setopt($this->curl, CURLOPT_PUT, true);
         curl_exec($this->curl);
 
@@ -373,13 +465,16 @@ class Connection
     /**
      * Make an HTTP DELETE request to the specified endpoint.
      *
-     * @param $url
-     * @return bool|mixed|string
+     * @param string $url URL to which we send the request
+     * @return mixed
      */
     public function delete($url)
     {
         $this->initializeRequest();
 
+        curl_setopt($this->curl, CURLOPT_PUT, false);
+        curl_setopt($this->curl, CURLOPT_HTTPGET, false);
+        curl_setopt($this->curl, CURLOPT_POST, false);
         curl_setopt($this->curl, CURLOPT_CUSTOMREQUEST, 'DELETE');
         curl_setopt($this->curl, CURLOPT_URL, $url);
         curl_exec($this->curl);
@@ -390,8 +485,8 @@ class Connection
     /**
      * Method that appears unused, but is in fact called by curl
      *
-     * @param $curl
-     * @param $body
+     * @param resource $curl
+     * @param string $body
      * @return int
      */
     private function parseBody($curl, $body)
@@ -403,8 +498,8 @@ class Connection
     /**
      * Method that appears unused, but is in fact called by curl
      *
-     * @param $curl
-     * @param $headers
+     * @param resource $curl
+     * @param string $headers
      * @return int
      */
     private function parseHeader($curl, $headers)
@@ -422,6 +517,8 @@ class Connection
 
     /**
      * Access the status code of the response.
+     *
+     * @return mixed
      */
     public function getStatus()
     {
@@ -430,6 +527,8 @@ class Connection
 
     /**
      * Access the message string from the status line of the response.
+     *
+     * @return string
      */
     public function getStatusMessage()
     {
@@ -438,6 +537,8 @@ class Connection
 
     /**
      * Access the content body of the response
+     *
+     * @return string
      */
     public function getBody()
     {
@@ -446,6 +547,10 @@ class Connection
 
     /**
      * Access given header from the response.
+     *
+     * @param string $header Header name to retrieve
+     *
+     * @return string|void
      */
     public function getHeader($header)
     {
